@@ -1,0 +1,24 @@
+﻿# STREAMLIT SECRETS
+.streamlit/secrets.toml
+.streamlit/*.toml
+
+# USER DATA
+user_data/
+data/
+
+# PYTHON
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ENVIRONMENT
+.env
+.venv
+venv/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
