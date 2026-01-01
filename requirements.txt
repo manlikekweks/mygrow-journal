@@ -1,7 +1,6 @@
 ﻿streamlit>=1.28.0
-authlib>=1.3.2
+streamlit-authenticator>=0.2.0
 plotly>=5.17.0
 pandas>=2.0.0
 requests>=2.31.0
-openai>=1.3.0          # If using OpenAI API
-python-dotenv>=1.0.0   # For environment variables
+authlib>=1.3.2
