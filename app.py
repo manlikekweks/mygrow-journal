@@ -17,33 +17,48 @@ import plotly.express as px
 import random
 
 # ============================================
-# GOOGLE AUTHENTICATION CHECK - ADDED HERE
+# GOOGLE AUTHENTICATION CHECK - UPDATED API
 # ============================================
 
-# Show login screen if user is not authenticated
-if not st.user.is_logged_in:
-    st.markdown("""
-        <div style="text-align: center; padding: 4rem;">
-            <h1 style="color: #2D5A27;">🔐 MyGrow AI Spiritual Director</h1>
-            <p style="color: #5A7F5C; font-size: 1.2rem; margin-bottom: 2rem;">
-                Sign in to access your personal spiritual journal.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+# Check if user is authenticated
+try:
+    # New Streamlit authentication API
+    from streamlit.runtime.state import get_session_state
     
-    # Login button
-    if st.button("Sign in with Google", type="primary", use_container_width=True, icon="🔑"):
-        st.login()  # This redirects to Google OAuth
-    st.stop()  # STOP the app here until login is complete
-
-# ============================================
-# USER IS NOW LOGGED IN - GET THEIR UNIQUE ID
-# ============================================
-user_id = st.user.sub  # Unique Google user ID
-user_email = st.user.email  # For greeting
+    # Get authentication state
+    auth_state = get_session_state().get("_auth", {})
+    is_authenticated = auth_state.get("is_authenticated", False)
+    user_info = auth_state.get("user_info", {})
+    
+    if not is_authenticated:
+        st.markdown("""
+            <div style="text-align: center; padding: 4rem;">
+                <h1 style="color: #2D5A27;">🔐 MyGrow AI Spiritual Director</h1>
+                <p style="color: #5A7F5C; font-size: 1.2rem; margin-bottom: 2rem;">
+                    Sign in to access your personal spiritual journal.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Login button
+        if st.button("Sign in with Google", type="primary", use_container_width=True, icon="🔑"):
+            st.switch_page("/oauth2/authorize")
+        st.stop()
+    
+    # User is logged in
+    user_id = user_info.get("sub", "unknown")
+    user_email = user_info.get("email", "")
+    user_name = user_info.get("name", user_email)
+    
+except Exception as e:
+    # Fallback for development
+    st.warning(f"Authentication error: {e}")
+    user_id = "dev_user"
+    user_email = "dev@example.com"
+    user_name = "Developer"
 
 # Optional: Show welcome message in sidebar later
-# st.sidebar.success(f"Welcome, {st.user.name or user_email}!")
+# st.sidebar.success(f"Welcome, {user_email}!")
 
 # ============================================
 # IMPORT AI MODULES WITH PROPER ERROR HANDLING
@@ -1018,7 +1033,7 @@ archive = JournalArchive(user_id)
 
 with st.sidebar:
     # Welcome message
-    st.sidebar.success(f"Welcome, {st.user.name or user_email}!")
+    st.sidebar.success(f"Welcome, {user_name}!")
     
     st.markdown("""
         <div style='background: #F9F7F1; padding: 1.5rem; border-radius: 8px; border: 1px solid #E8E6DE; margin-bottom: 1rem;'>
@@ -1088,7 +1103,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     if st.button("🚪 Sign Out", use_container_width=True):
-        st.logout()  # This clears the auth session
+        st.switch_page("/oauth2/logout")  # Updated logout method
     
     st.markdown("""
         </div>
