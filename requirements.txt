@@ -1,7 +1,10 @@
 ﻿streamlit>=1.28.0
-openai>=1.3.0  # DeepSeek uses OpenAI compatible API
+openai>=1.3.0
 python-dotenv>=1.0.0
 plotly>=5.17.0
 pandas>=2.0.0
 requests>=2.31.0
 authlib>=1.3.2
+numpy>=2.0.0
+cryptography>=42.0.0  # For secure authentication
+protobuf>=4.25.0  # Often needed with streamlit
