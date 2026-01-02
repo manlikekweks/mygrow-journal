@@ -1,5 +1,5 @@
 ﻿# ============================================
-# IMPORT ALL MODULES AT THE TOP
+# FIXED AUTHENTICATION - KEEPING ORIGINAL STRUCTURE
 # ============================================
 
 # Import Streamlit FIRST
@@ -15,19 +15,242 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import random
+import hashlib
 
 # ============================================
-# GOOGLE AUTHENTICATION CHECK
+# ENHANCED AUTHENTICATION WITH FALLBACK OPTIONS
 # ============================================
 
-# Initialize authentication state
-is_authenticated = False
-user_info = {}
-user_id = "unknown"
-user_email = ""
-user_name = ""
+# Initialize session state for auth
+if 'auth_initialized' not in st.session_state:
+    st.session_state.auth_initialized = True
+    st.session_state.is_authenticated = False
+    st.session_state.user_info = {}
+    st.session_state.auth_method = None  # 'google', 'email', 'local'
 
-# Check if Streamlit secrets are configured for authentication
+# Helper function for email/password auth
+def authenticate_email_password(email, password):
+    """Simple email/password authentication as fallback"""
+    # Demo users (in production, use a database)
+    demo_users = {
+        "user@example.com": {
+            "password_hash": hashlib.sha256("password123".encode()).hexdigest(),
+            "name": "John Doe",
+            "user_id": "user_001"
+        },
+        "test@test.com": {
+            "password_hash": hashlib.sha256("test123".encode()).hexdigest(),
+            "name": "Test User",
+            "user_id": "user_002"
+        }
+    }
+    
+    if email in demo_users:
+        user_data = demo_users[email]
+        input_hash = hashlib.sha256(password.encode()).hexdigest()
+        
+        if user_data["password_hash"] == input_hash:
+            return {
+                "email": email,
+                "name": user_data["name"],
+                "sub": user_data["user_id"]
+            }
+    return None
+
+def show_auth_page():
+    """Show authentication page with multiple options"""
+    
+    # Custom CSS for auth page
+    st.markdown("""
+        <style>
+        .auth-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .auth-card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border: 1px solid #E8E6DE;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .auth-header h1 {
+            color: #2D5A27;
+            margin-bottom: 10px;
+        }
+        .auth-header p {
+            color: #5A7F5C;
+        }
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #E8E6DE;
+        }
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 15px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #5A7F5C;
+            transition: all 0.3s;
+        }
+        .auth-tab.active {
+            color: #2D5A27;
+            border-bottom: 3px solid #2D5A27;
+        }
+        .auth-option {
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid #E8E6DE;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .auth-option:hover {
+            border-color: #8AB4A1;
+            background: #F9F7F1;
+        }
+        .demo-info {
+            background: #F0F7ED;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #5A7F5C;
+            margin-top: 20px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <h1>🌿 MyGrow AI Spiritual Director</h1>
+                    <p>Sign in to access your personal spiritual journal and growth tracker</p>
+                </div>
+    """, unsafe_allow_html=True)
+    
+    # Auth tabs
+    tab1, tab2, tab3 = st.tabs(["🔐 Sign In", "📝 Register", "🚀 Quick Start"])
+    
+    with tab1:
+        st.markdown("### Sign In to Your Account")
+        
+        # Google OAuth option
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("Sign in with Google", icon="🔑", use_container_width=True):
+                try:
+                    # Try Google auth if configured
+                    if hasattr(st, 'secrets') and 'auth' in st.secrets:
+                        st.switch_page("/oauth2/authorize")
+                    else:
+                        st.warning("Google authentication not configured. Using demo mode.")
+                        # Auto-login with demo account
+                        st.session_state.is_authenticated = True
+                        st.session_state.user_info = {
+                            'email': 'user@example.com',
+                            'name': 'Demo User',
+                            'sub': 'demo_user'
+                        }
+                        st.session_state.auth_method = 'demo'
+                        st.success("Logged in with demo account!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Authentication error: {e}")
+        
+        st.markdown("---")
+        st.markdown("#### Or sign in with email")
+        
+        # Email/password form
+        with st.form("login_form"):
+            email = st.text_input("Email Address")
+            password = st.text_input("Password", type="password")
+            submit = st.form_submit_button("Sign In", type="primary")
+            
+            if submit:
+                if email and password:
+                    user_info = authenticate_email_password(email, password)
+                    if user_info:
+                        st.session_state.is_authenticated = True
+                        st.session_state.user_info = user_info
+                        st.session_state.auth_method = 'email'
+                        st.success("Login successful! Redirecting...")
+                        st.rerun()
+                    else:
+                        st.error("Invalid email or password")
+                else:
+                    st.warning("Please enter both email and password")
+    
+    with tab2:
+        st.markdown("### Create New Account")
+        
+        with st.form("register_form"):
+            name = st.text_input("Full Name")
+            email = st.text_input("Email Address")
+            password = st.text_input("Password", type="password")
+            confirm_password = st.text_input("Confirm Password", type="password")
+            
+            if st.form_submit_button("Create Account", type="primary"):
+                if password == confirm_password and len(password) >= 6:
+                    # In production, save to database
+                    user_id = f"user_{hashlib.md5(email.encode()).hexdigest()[:8]}"
+                    st.session_state.is_authenticated = True
+                    st.session_state.user_info = {
+                        'email': email,
+                        'name': name,
+                        'sub': user_id
+                    }
+                    st.session_state.auth_method = 'email'
+                    st.success("Account created! Redirecting...")
+                    st.rerun()
+                else:
+                    st.error("Passwords don't match or are too short")
+    
+    with tab3:
+        st.markdown("### Quick Start")
+        st.markdown("""
+            Start using the app immediately with a demo account.
+            Your data will be saved locally for this session.
+        """)
+        
+        if st.button("Start with Demo Account", type="primary", icon="🚀", use_container_width=True):
+            st.session_state.is_authenticated = True
+            st.session_state.user_info = {
+                'email': 'demo@mygrow.app',
+                'name': 'Demo User',
+                'sub': 'demo_user_' + str(random.randint(1000, 9999))
+            }
+            st.session_state.auth_method = 'demo'
+            st.success("Welcome! Using demo mode.")
+            st.rerun()
+    
+    # Demo credentials info
+    st.markdown("""
+        <div class="demo-info">
+            <h4>📋 Demo Credentials</h4>
+            <p><strong>For testing:</strong></p>
+            <p>• Email: <code>user@example.com</code> | Password: <code>password123</code></p>
+            <p>• Email: <code>test@test.com</code> | Password: <code>test123</code></p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.stop()
+
+# ============================================
+# CHECK AUTHENTICATION - FIXED LOGIC
+# ============================================
+
+# Option 1: Check if using Streamlit Cloud authentication
 try:
     if hasattr(st, 'secrets') and 'auth' in st.secrets:
         # Streamlit Cloud authentication
@@ -36,63 +259,58 @@ try:
         
         session_state = safe_session_state()
         
-        # Check for authentication in session state
         if '_auth' in session_state:
             auth_state = session_state['_auth']
-            is_authenticated = auth_state.get('is_authenticated', False)
-            user_info = auth_state.get('user_info', {})
+            if auth_state.get('is_authenticated', False):
+                st.session_state.is_authenticated = True
+                st.session_state.user_info = auth_state.get('user_info', {})
+                st.session_state.auth_method = 'google'
         elif 'user_info' in session_state:
-            is_authenticated = True
-            user_info = session_state.get('user_info', {})
-    else:
-        # Local development without authentication
-        st.warning("⚠️ Authentication not configured. Running in limited mode.")
-        is_authenticated = True
-        user_info = {
-            'email': 'user@example.com',
-            'name': 'User',
-            'sub': 'local_user'
-        }
-        
+            st.session_state.is_authenticated = True
+            st.session_state.user_info = session_state.get('user_info', {})
+            st.session_state.auth_method = 'google'
 except Exception as e:
-    st.error(f"Authentication initialization error: {e}")
-    st.stop()
+    print(f"Streamlit auth check failed: {e}")
+    # Continue with other auth methods
 
-# Show login page if not authenticated
-if not is_authenticated:
-    st.markdown("""
-        <div style="text-align: center; padding: 4rem;">
-            <h1 style="color: #2D5A27;">🔐 MyGrow AI Spiritual Director</h1>
-            <p style="color: #5A7F5C; font-size: 1.2rem; margin-bottom: 2rem;">
-                Sign in to access your personal spiritual journal.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Login button
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        if st.button("Sign in with Google", type="primary", use_container_width=True, icon="🔑"):
-            # Redirect to authentication endpoint
-            try:
-                # This assumes you have OAuth configured
-                st.switch_page("/oauth2/authorize")
-            except Exception as e:
-                st.error(f"Authentication redirect failed: {e}")
-                st.info("Please ensure authentication is properly configured in Streamlit secrets.")
-    
-    st.stop()
+# Option 2: Check local development (for testing)
+if not st.session_state.is_authenticated and os.getenv('LOCAL_DEVELOPMENT'):
+    st.session_state.is_authenticated = True
+    st.session_state.user_info = {
+        'email': 'local@dev.com',
+        'name': 'Local Developer',
+        'sub': 'local_dev'
+    }
+    st.session_state.auth_method = 'local'
+    print("Running in local development mode")
+
+# Option 3: Show auth page if still not authenticated
+if not st.session_state.is_authenticated:
+    show_auth_page()
+
+# ============================================
+# PROCEED WITH ORIGINAL CODE - AUTHENTICATED USER
+# ============================================
 
 # User is logged in - extract user information
+user_info = st.session_state.user_info
 user_id = user_info.get("sub", "unknown")
 user_email = user_info.get("email", "")
 user_name = user_info.get("name", user_email.split('@')[0] if '@' in user_email else "User")
+
+# Display auth method in sidebar
+auth_method_display = {
+    'google': 'Google Account',
+    'email': 'Email Login',
+    'demo': 'Demo Mode',
+    'local': 'Local Development'
+}.get(st.session_state.auth_method, 'Unknown')
 
 # ============================================
 # IMPORT AI MODULES WITH PROPER ERROR HANDLING
 # ============================================
 
-# Now try to import your AI modules
+# Now try to import your AI modules (rest of your original code continues...)
 try:
     from ai_analyzer import analyze_spiritual_journal, get_bible_verse_suggestions
     from bible_integration import get_bible_verse, get_book_list, get_chapter_list, get_verse_list
@@ -157,12 +375,15 @@ st.set_page_config(
 )
 
 # ============================================
-# TRANQUIL HEADER
+# TRANQUIL HEADER (Modified to show auth status)
 # ============================================
-st.markdown("""
+st.markdown(f"""
     <div style="text-align: center; padding: 1rem 0; margin-bottom: 2rem;">
         <h1 style="color: #2D5A27; margin-bottom: 0.5rem;">🌿 MyGrow AI Spiritual Director</h1>
-        <p style="color: #5A7F5C; font-size: 1.1rem;">📚 Journal • 📖 Scripture • 📈 Growth Tracking • 💝 Personalized Guidance</p>
+        <p style="color: #5A7F5C; font-size: 1.1rem;">
+            Welcome, {user_name}! • 📚 Journal • 📖 Scripture • 📈 Growth Tracking • 💝 Personalized Guidance
+            <br><small style="font-size: 0.8rem; opacity: 0.7;">Logged in via {auth_method_display}</small>
+        </p>
         <hr style="height: 1px; background: linear-gradient(90deg, transparent, #8AB4A1, transparent); margin: 1.5rem 0; border: none;">
     </div>
 """, unsafe_allow_html=True)
@@ -1051,6 +1272,8 @@ if 'show_archive' not in st.session_state:
     st.session_state.show_archive = False
 if 'selected_entry' not in st.session_state:
     st.session_state.selected_entry = None
+if 'auto_archive' not in st.session_state:
+    st.session_state.auto_archive = True
 
 # Initialize archive with user_id
 archive = JournalArchive(user_id)
@@ -1060,8 +1283,9 @@ archive = JournalArchive(user_id)
 # ============================================
 
 with st.sidebar:
-    # Welcome message
+    # Welcome message with auth status
     st.sidebar.success(f"Welcome, {user_name}!")
+    st.sidebar.caption(f"Logged in via {auth_method_display}")
     
     st.markdown("""
         <div style='background: #F9F7F1; padding: 1.5rem; border-radius: 8px; border: 1px solid #E8E6DE; margin-bottom: 1rem;'>
@@ -1072,7 +1296,7 @@ with st.sidebar:
     if ai_ready:
         st.success("✅ AI & Bible: READY")
     else:
-        st.error("❌ Setup incomplete (using mock data)")
+        st.warning("⚠️ Using mock data")
     
     # Quick stats
     entries = archive.get_entries()
@@ -1119,7 +1343,7 @@ with st.sidebar:
     
     # Auto-archive toggle
     st.markdown('<hr style="height: 1px; background: linear-gradient(90deg, transparent, #8AB4A1, transparent); margin: 1rem 0; border: none;">', unsafe_allow_html=True)
-    auto_archive = st.checkbox("💾 Auto-archive entries", value=True, 
+    st.session_state.auto_archive = st.checkbox("💾 Auto-archive entries", value=st.session_state.auto_archive, 
                               help="Automatically save each analysis session")
     
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1134,12 +1358,7 @@ with st.sidebar:
         # Clear session state
         for key in list(st.session_state.keys()):
             del st.session_state[key]
-        
-        # Redirect to logout or home
-        try:
-            st.switch_page("/oauth2/logout")
-        except:
-            st.switch_page("/")
+        st.rerun()
     
     st.markdown("""
         </div>
@@ -1331,7 +1550,7 @@ with col1:
                 st.session_state.result = result
                 
                 # Auto-archive if enabled
-                if 'auto_archive' in locals() and auto_archive:
+                if st.session_state.auto_archive:
                     try:
                         archive.save_entry(journal, result)
                     except Exception as e:
@@ -1478,7 +1697,7 @@ with col1:
                 """, unsafe_allow_html=True)
             
             # Archive button
-            if not auto_archive:
+            if not st.session_state.auto_archive:
                 if st.button("💾 Save to Archive", type="secondary", use_container_width=True):
                     archive.save_entry(journal, result)
                     st.success("Entry archived!")
