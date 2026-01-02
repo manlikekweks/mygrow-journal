@@ -3,6 +3,7 @@ import json
 import re
 from openai import OpenAI
 from datetime import datetime
+import streamlit as st  # <-- ADDED: For accessing Streamlit Secrets
 
 # Theme mapping for deeper analysis
 SPIRITUAL_THEMES = {
@@ -31,11 +32,11 @@ BIBLE_BOOKS = {
 def analyze_spiritual_journal(journal_text):
     """Deep spiritual analysis with personalized guidance."""
     try:
-        # Get API key
-        api_key = os.getenv("DEEPSEEK_API_KEY")
+        # Get API key from Streamlit Secrets
+        api_key = st.secrets.get("DEEPSEEK_API_KEY")
         
         if not api_key:
-            return get_rich_fallback_response("API key not configured")
+            return get_rich_fallback_response("API key not configured in Streamlit Secrets")
         
         # Initialize DeepSeek client
         client = OpenAI(
