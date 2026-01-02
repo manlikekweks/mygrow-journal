@@ -17,48 +17,76 @@ import plotly.express as px
 import random
 
 # ============================================
-# GOOGLE AUTHENTICATION CHECK - UPDATED API
+# GOOGLE AUTHENTICATION CHECK
 # ============================================
 
-# Check if user is authenticated
-try:
-    # New Streamlit authentication API
-    from streamlit.runtime.state import get_session_state
-    
-    # Get authentication state
-    auth_state = get_session_state().get("_auth", {})
-    is_authenticated = auth_state.get("is_authenticated", False)
-    user_info = auth_state.get("user_info", {})
-    
-    if not is_authenticated:
-        st.markdown("""
-            <div style="text-align: center; padding: 4rem;">
-                <h1 style="color: #2D5A27;">🔐 MyGrow AI Spiritual Director</h1>
-                <p style="color: #5A7F5C; font-size: 1.2rem; margin-bottom: 2rem;">
-                    Sign in to access your personal spiritual journal.
-                </p>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Login button
-        if st.button("Sign in with Google", type="primary", use_container_width=True, icon="🔑"):
-            st.switch_page("/oauth2/authorize")
-        st.stop()
-    
-    # User is logged in
-    user_id = user_info.get("sub", "unknown")
-    user_email = user_info.get("email", "")
-    user_name = user_info.get("name", user_email)
-    
-except Exception as e:
-    # Fallback for development
-    st.warning(f"Authentication error: {e}")
-    user_id = "dev_user"
-    user_email = "dev@example.com"
-    user_name = "Developer"
+# Initialize authentication state
+is_authenticated = False
+user_info = {}
+user_id = "unknown"
+user_email = ""
+user_name = ""
 
-# Optional: Show welcome message in sidebar later
-# st.sidebar.success(f"Welcome, {user_email}!")
+# Check if Streamlit secrets are configured for authentication
+try:
+    if hasattr(st, 'secrets') and 'auth' in st.secrets:
+        # Streamlit Cloud authentication
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        from streamlit.runtime.state import safe_session_state
+        
+        session_state = safe_session_state()
+        
+        # Check for authentication in session state
+        if '_auth' in session_state:
+            auth_state = session_state['_auth']
+            is_authenticated = auth_state.get('is_authenticated', False)
+            user_info = auth_state.get('user_info', {})
+        elif 'user_info' in session_state:
+            is_authenticated = True
+            user_info = session_state.get('user_info', {})
+    else:
+        # Local development without authentication
+        st.warning("⚠️ Authentication not configured. Running in limited mode.")
+        is_authenticated = True
+        user_info = {
+            'email': 'user@example.com',
+            'name': 'User',
+            'sub': 'local_user'
+        }
+        
+except Exception as e:
+    st.error(f"Authentication initialization error: {e}")
+    st.stop()
+
+# Show login page if not authenticated
+if not is_authenticated:
+    st.markdown("""
+        <div style="text-align: center; padding: 4rem;">
+            <h1 style="color: #2D5A27;">🔐 MyGrow AI Spiritual Director</h1>
+            <p style="color: #5A7F5C; font-size: 1.2rem; margin-bottom: 2rem;">
+                Sign in to access your personal spiritual journal.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Login button
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        if st.button("Sign in with Google", type="primary", use_container_width=True, icon="🔑"):
+            # Redirect to authentication endpoint
+            try:
+                # This assumes you have OAuth configured
+                st.switch_page("/oauth2/authorize")
+            except Exception as e:
+                st.error(f"Authentication redirect failed: {e}")
+                st.info("Please ensure authentication is properly configured in Streamlit secrets.")
+    
+    st.stop()
+
+# User is logged in - extract user information
+user_id = user_info.get("sub", "unknown")
+user_email = user_info.get("email", "")
+user_name = user_info.get("name", user_email.split('@')[0] if '@' in user_email else "User")
 
 # ============================================
 # IMPORT AI MODULES WITH PROPER ERROR HANDLING
@@ -1024,7 +1052,7 @@ if 'show_archive' not in st.session_state:
 if 'selected_entry' not in st.session_state:
     st.session_state.selected_entry = None
 
-# MODIFIED: Initialize archive with user_id
+# Initialize archive with user_id
 archive = JournalArchive(user_id)
 
 # ============================================
@@ -1103,7 +1131,15 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     if st.button("🚪 Sign Out", use_container_width=True):
-        st.switch_page("/oauth2/logout")  # Updated logout method
+        # Clear session state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        
+        # Redirect to logout or home
+        try:
+            st.switch_page("/oauth2/logout")
+        except:
+            st.switch_page("/")
     
     st.markdown("""
         </div>
